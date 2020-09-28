@@ -1,0 +1,10 @@
+[Unit]
+Description=Meeting Status Light REST Service
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/env python /opt/statuslight/main.py > /var/log/statuslight/main.log 2>&1
+
+[Install]
+WantedBy=multi-user.target
