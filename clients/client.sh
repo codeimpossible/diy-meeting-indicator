@@ -11,11 +11,15 @@ set -e
 
 INSTALL="false"
 IP="$1"
-if [ $1="install" ]; then
+if [ $1 = "install" ]; then
   INSTALL="true"
   IP="$2"
+  if [[ "$IP" == "" ]]; then
+    echo "$date ERR!: Must specify an IP during install."
+    exit 1
+  fi
 fi
-SCRIPT="${BASH_SOURCE[0]}"
+SCRIPT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 # Prints out the usage instructions for this script
 function usage {
@@ -28,9 +32,15 @@ function usage {
   echo "Example (without install): $0 192.168.1.123"
 }
 
+function log() {
+  msg="$1"
+  date=$(date '+%Y-%m-%d %H:%M:%S')
+  printf "$date $msg\n"
+}
+
 function install {
-  crontab -l > _cron
-  echo "* * * * * $SCRIPT $IP" >> _cron
+  crontab -l > _cron || true
+  echo "* * * * * $SCRIPT/client.sh $IP" >> _cron
   crontab _cron
   rm _cron
   
@@ -38,18 +48,38 @@ function install {
 }
 
 function main {
-  if [ $1="help"]; then
+  log "v1.1 running..."
+  if [ "$1" = "help" ]; then
     usage
     return 0
   fi
-  
+
   if [[ "$INSTALL" == "true" ]]; then
     install
   else
+    lastState=""
+    if [ -f "$SCRIPT/_lastState" ]; then
+      lastState=$(/bin/cat "$SCRIPT/_lastState");
+    fi
+    
+    log "lastState=$lastState"
+
     # check for zoom call
-    status=$(lsof -i | grep zoom.us | grep UDP | wc -l | xargs)
-    curl -x POST -H "Content-Type: application/json" --data '{"status": $status}' http://$IP:8000/api/status
+    log "checking for zoom calls..."
+    status=$(/usr/sbin/lsof -i | grep zoom.us | grep UDP | /usr/bin/wc -l | xargs)
+    if [ "$status" != "0" ]; then
+      status="1"
+    fi
+    
+    log "lastStatus ($lastState) == status ($status)?"
+    if [ "$lastState" != "$status" ]; then
+      log "sending status=$status to indicator..."
+      curl -X PUT -H "Content-Type: application/json" --data "{ \"status\": $status }" http://$IP/status
+      echo $status > $SCRIPT/_lastState
+    else 
+      log "lastStatus ($lastState) == status ($status). Exiting."
+    fi
   fi
 }
 
-main "$@"
+main
