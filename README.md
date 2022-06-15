@@ -15,7 +15,7 @@ I setup a meeting indicator using a raspberry pi zero w
 
 ## Installing the Client
 
-Check out [the guide for installing the client](./client/README.md).
+Check out [the guide for installing the client](./clients/README.md).
 
 ## Installing the Server
 
